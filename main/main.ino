@@ -9,8 +9,8 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
-// DHT11 sensor library
-#include <Bonezegei_DHT11.h>
+// DHT sensor library
+#include "DHT.h"
 
 // Logging library
 #include <ArduinoLog.h>
@@ -19,11 +19,15 @@
 const char *wifiSsid     = "";
 const char *wifiPassword = "";
 
-// Broker
+// MQTT Broker address and credentials
 const char *mqttServer = "";
 const char *mqttId = "";
 const char *mqttUser = "";
 const char *mqttPassword = "";
+
+// DHT pin and type definitions
+#define DHTPIN 2
+#define DHTTYPE DHT11
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
@@ -37,8 +41,8 @@ PubSubClient mqttClient(wifiClient);
 #define MSG_BUFFER_SIZE	80
 char msg[MSG_BUFFER_SIZE];
 
-// DHT sensor, GPIO2 port
-Bonezegei_DHT11 dht(2);
+// DHT object declaration
+DHT dht(DHTPIN, DHTTYPE);
 
 void WifiSetup() {
   Log.noticeln(NL NL"Connecting to %s", wifiSsid);
@@ -109,19 +113,26 @@ void loop() {
 
   // Save current timestamp
   unsigned long timestamp = timeClient.getEpochTime(); // unix time in seconds
+
+  float temp;
+  float hum;
   
-  // Read Temperature and Humidity with DHT11
-  while(!dht.getData()) {
-    Log.errorln("Failed to read DHT sensor, trying again in 2 seconds");
-    delay(2000);
+  // Read Temperature and Humidity with DHT sensor
+  while(true) {
+    temp = dht.readTemperature(); // Celsius
+    hum = dht.readHumidity();
+
+    if(isnan(temp) || isnan(hum)) {
+      Log.errorln("Failed to read DHT sensor, trying again in 2 seconds");
+      delay(2000);
+    }
+    else {
+      break;
+    }
   }
 
-  // Prepare values
-  int temp = dht.getTemperature(); // Celsius
-  int hum = dht.getHumidity(); 
-
   // Write to message buffer, timestamp in milliseconds by adding 3 zeros
-  snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%d,'humidity':%d}}", timestamp, temp, hum);
+  snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%.0f,'humidity':%.0f}}", timestamp, temp, hum);
 
   // Send MQTT message to topic v1/devices/me/telemetry (Thingsboard)
   Log.noticeln("Publish message: %s", msg);
