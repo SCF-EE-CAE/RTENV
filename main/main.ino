@@ -81,7 +81,9 @@ void MQTT_connect() {
     if (retries == 0) ESP.restart();
   }
 
-  Log.noticeln("MQTT Connected!");
+  attributeTopic.publish("{'firmwareVersion':" FIRMWARE_VERSION "}");
+
+  Log.noticeln("MQTT Connected! Firmware version " FIRMWARE_VERSION " sent to Thingsboard.");
 }
 
 void sendData() {
