@@ -19,47 +19,35 @@
 // OTA library
 #include <ArduinoOTA.h>
 
-// WiFi Credentials
-const char *wifiSsid     = "";
-const char *wifiPassword = "";
-
-// MQTT Broker address and credentials
-const char *mqttServer   = "";
-const char *mqttId       = "";
-const char *mqttUser     = "";
-const char *mqttPassword = "";
-
-// DHT pin and type definitions
-#define DHTPIN 2
-#define DHTTYPE DHT11
+// Configuration file
+#include "config.h"
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "a.st1.ntp.br");
+NTPClient timeClient(ntpUDP, NTP_SERVER);
 
 // Define MQTT client to send data
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
 // Buffer for MQTT message
-#define MSG_BUFFER_SIZE	80
 char msg[MSG_BUFFER_SIZE];
 
 // DHT object declaration
-DHT dht(DHTPIN, DHTTYPE);
+DHT dht(DHT_PIN, DHT_TYPE);
 
 void WifiSetup() {
-  Log.noticeln(NL NL"Connecting to %s", wifiSsid);
+  Log.noticeln(NL NL "Connecting to " WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
-  WiFi.begin(wifiSsid, wifiPassword);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Log.notice(".");
+    Log.noticeln(".");
   }
 
-  Log.notice(NL"WiFi connected. IP address: ");
+  Log.noticeln(NL "WiFi connected. IP address: ");
   Log.noticeln(WiFi.localIP());
 }
 
@@ -68,7 +56,7 @@ void reconnect() {
   while (!mqttClient.connected()) {
     Log.noticeln("Attempting MQTT connection...");
     // Attempt to connect
-    if (mqttClient.connect(mqttId, mqttUser, mqttPassword)) {
+    if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD)) {
       Log.noticeln("Connected.");
     } else {
       Log.errorln("Failed, rc=%d trying again in 5 seconds", mqttClient.state());
@@ -79,7 +67,7 @@ void reconnect() {
 }
 
 void sendData() {
-// Save current timestamp
+  // Save current timestamp
   unsigned long timestamp = timeClient.getEpochTime(); // unix time in seconds
 
   float temp;
@@ -105,7 +93,7 @@ void sendData() {
   // Send MQTT message to topic v1/devices/me/telemetry (Thingsboard)
   Log.noticeln("Publish message: %s", msg);
 
-  while(!mqttClient.publish("v1/devices/me/telemetry", msg)) {
+  while(!mqttClient.publish(MQTT_TELEMETRY_TOPIC, msg)) {
     Log.errorln("Failed.");
     delay(500);
     if (!mqttClient.connected()) {
@@ -127,8 +115,8 @@ void setup() {
   // Initialize WiFi connection
   WifiSetup();
 
-  // Configure MQTT server address, port 1883 (default) and connect
-  mqttClient.setServer(mqttServer, 1883);
+  // Configure MQTT server address and port and connect
+  mqttClient.setServer(MQTT_SERVER_ADDRESS, MQTT_SERVER_PORT);
   reconnect();
   
   // Initialize NTP client
