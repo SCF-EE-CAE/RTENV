@@ -11,6 +11,9 @@
 #define MQTT_USERNAME  ""
 #define MQTT_PASSWORD  ""
 
+// MQTT QOS (0 or 1)
+#define MQTT_QOS_LEVEL 1
+
 // DHT pin and type
 #define DHT_PIN 2
 #define DHT_TYPE DHT11

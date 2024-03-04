@@ -4,7 +4,8 @@
 
 // MQTT libraries
 #include <WiFiClient.h>
-#include <PubSubClient.h>
+#include "Adafruit_MQTT.h"
+#include "Adafruit_MQTT_Client.h"
 
 // NTP libraries
 #include <NTPClient.h>
@@ -22,19 +23,24 @@
 // Configuration file
 #include "config.h"
 
+// Define MQTT client to send data
+WiFiClient wifiClient;
+Adafruit_MQTT_Client mqttClient(&wifiClient,
+                                MQTT_SERVER_ADDRESS, MQTT_SERVER_PORT,
+                                MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
+
+// Topic for publish telemetry data
+Adafruit_MQTT_Publish telemetryTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_TELEMETRY_TOPIC, MQTT_QOS_LEVEL);
+
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, NTP_SERVER);
 
-// Define MQTT client to send data
-WiFiClient wifiClient;
-PubSubClient mqttClient(wifiClient);
+// DHT object declaration
+DHT dht(DHT_PIN, DHT_TYPE);
 
 // Buffer for MQTT message
 char msg[MSG_BUFFER_SIZE];
-
-// DHT object declaration
-DHT dht(DHT_PIN, DHT_TYPE);
 
 void WifiSetup() {
   Log.noticeln(NL NL "Connecting to " WIFI_SSID);
@@ -51,19 +57,30 @@ void WifiSetup() {
   Log.noticeln(WiFi.localIP());
 }
 
-void reconnect() {
-  // Loop until we're reconnected
-  while (!mqttClient.connected()) {
-    Log.noticeln("Attempting MQTT connection...");
-    // Attempt to connect
-    if (mqttClient.connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD)) {
-      Log.noticeln("Connected.");
-    } else {
-      Log.errorln("Failed, rc=%d trying again in 5 seconds", mqttClient.state());
-      // Wait 5 seconds before retrying
-      delay(5000);
+void MQTT_connect() {
+  int8_t ret;
+
+  // Stop if already connected.
+  if (mqttClient.connected()) return;
+
+  Log.noticeln("Connecting to MQTT... ");
+
+  uint8_t retries = 3;
+  while ((ret = mqttClient.connect()) != 0) { // connect will return 0 for connected
+    Log.errorln(mqttClient.connectErrorString(ret));
+    Log.errorln("Retrying MQTT connection in 5 seconds...");
+    mqttClient.disconnect();
+
+    for(int i = 0; i < 50; i++) { // waits 5 seconds while checking for OTA updates
+      ArduinoOTA.handle();
+      delay(100);
     }
+
+    retries--;
+    if (retries == 0) ESP.restart();
   }
+
+  Log.noticeln("MQTT Connected!");
 }
 
 void sendData() {
@@ -93,12 +110,9 @@ void sendData() {
   // Send MQTT message to topic v1/devices/me/telemetry (Thingsboard)
   Log.noticeln("Publish message: %s", msg);
 
-  while(!mqttClient.publish(MQTT_TELEMETRY_TOPIC, msg)) {
+  while(!telemetryTopic.publish(msg)) {
     Log.errorln("Failed.");
-    delay(500);
-    if (!mqttClient.connected()) {
-      reconnect();
-    }
+    MQTT_connect();
     Log.noticeln("Trying to send message again now.");
   }
 
@@ -115,10 +129,6 @@ void setup() {
   // Initialize WiFi connection
   WifiSetup();
 
-  // Configure MQTT server address and port and connect
-  mqttClient.setServer(MQTT_SERVER_ADDRESS, MQTT_SERVER_PORT);
-  reconnect();
-  
   // Initialize NTP client
   timeClient.begin();
 
@@ -134,7 +144,7 @@ void loop() {
   ArduinoOTA.handle();
   
   // Keep connection with MQTT Broker
-  mqttClient.loop();
+  MQTT_connect();
 
   // Update internal time with NTP server
   timeClient.update();
