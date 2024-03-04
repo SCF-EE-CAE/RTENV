@@ -1,5 +1,6 @@
 // WiFi library for ESP8266
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h> // for OTA discovery in Arduino
 
 // MQTT libraries
 #include <WiFiClient.h>
@@ -15,14 +16,17 @@
 // Logging library
 #include <ArduinoLog.h>
 
+// OTA library
+#include <ArduinoOTA.h>
+
 // WiFi Credentials
 const char *wifiSsid     = "";
 const char *wifiPassword = "";
 
 // MQTT Broker address and credentials
-const char *mqttServer = "";
-const char *mqttId = "";
-const char *mqttUser = "";
+const char *mqttServer   = "";
+const char *mqttId       = "";
+const char *mqttUser     = "";
 const char *mqttPassword = "";
 
 // DHT pin and type definitions
@@ -74,44 +78,8 @@ void reconnect() {
   }
 }
 
-void setup() {
-  // Iniatilize serial interface for logging
-  Serial.begin(115200);
-  while(!Serial && !Serial.available());
-  Log.begin(LOG_LEVEL_VERBOSE, &Serial);
-
-  // Initialize WiFi connection
-  WifiSetup();
-
-  // Configure MQTT server address, port 1883 (default) and connect
-  mqttClient.setServer(mqttServer, 1883);
-  reconnect();
-  
-  // Initialize NTP client
-  timeClient.begin();
-
-  // Initialize DHT11 sensor
-  dht.begin();
-}
-
-void loop() {
-  // Confirms MQTT client connection
-  if (!mqttClient.connected()) {
-    reconnect();
-  }
-  mqttClient.loop();
-
-  // Update internal time with NTP server
-  timeClient.update();
-
-  // Waits to correct time second (0 or 30 seconds)
-  int seconds;
-  do {
-    delay(200);
-    seconds = timeClient.getSeconds();
-  } while(seconds != 0 && seconds != 30);
-
-  // Save current timestamp
+void sendData() {
+// Save current timestamp
   unsigned long timestamp = timeClient.getEpochTime(); // unix time in seconds
 
   float temp;
@@ -148,4 +116,44 @@ void loop() {
 
   Log.noticeln("Success, next in 30s.");
   delay(2000);
+}
+
+void setup() {
+  // Iniatilize serial interface for logging
+  Serial.begin(115200);
+  while(!Serial && !Serial.available());
+  Log.begin(LOG_LEVEL_VERBOSE, &Serial);
+
+  // Initialize WiFi connection
+  WifiSetup();
+
+  // Configure MQTT server address, port 1883 (default) and connect
+  mqttClient.setServer(mqttServer, 1883);
+  reconnect();
+  
+  // Initialize NTP client
+  timeClient.begin();
+
+  // Initialize DHT11 sensor
+  dht.begin();
+
+  // OTA setup
+  ArduinoOTA.begin();
+}
+
+void loop() {
+  // Handle OTA firmware flash request
+  ArduinoOTA.handle();
+  
+  // Keep connection with MQTT Broker
+  mqttClient.loop();
+
+  // Update internal time with NTP server
+  timeClient.update();
+
+  int seconds = timeClient.getSeconds();
+  if(seconds == 0 || seconds == 30)
+    sendData();
+
+  delay(200);
 }
