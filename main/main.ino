@@ -106,6 +106,9 @@ void loop() {
     delay(200);
     seconds = timeClient.getSeconds();
   } while(seconds != 0 && seconds != 30);
+
+  // Save current timestamp
+  unsigned long timestamp = timeClient.getEpochTime(); // unix time in seconds
   
   // Read Temperature and Humidity with DHT11
   while(!dht.getData()) {
@@ -114,7 +117,6 @@ void loop() {
   }
 
   // Prepare values
-  unsigned long timestamp = timeClient.getEpochTime(); // unix time in seconds
   int temp = dht.getTemperature(); // Celsius
   int hum = dht.getHumidity(); 
 
