@@ -29,8 +29,9 @@ Adafruit_MQTT_Client mqttClient(&wifiClient,
                                 MQTT_SERVER_ADDRESS, MQTT_SERVER_PORT,
                                 MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
 
-// Topic for publish telemetry data
+// Topics to publish data
 Adafruit_MQTT_Publish telemetryTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_TELEMETRY_TOPIC, MQTT_QOS_LEVEL);
+Adafruit_MQTT_Publish attributeTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_ATTRIBUTE_TOPIC, MQTT_QOS_LEVEL);
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
@@ -107,7 +108,7 @@ void sendData() {
   // Write to message buffer, timestamp in milliseconds by adding 3 zeros
   snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%.0f,'humidity':%.0f}}", timestamp, temp, hum);
 
-  // Send MQTT message to topic v1/devices/me/telemetry (Thingsboard)
+  // Send MQTT message to telemetryTopic
   Log.noticeln("Publish message: %s", msg);
 
   while(!telemetryTopic.publish(msg)) {
@@ -120,6 +121,19 @@ void sendData() {
   delay(2000);
 }
 
+void sendStatus(const char *label, const char *status) {
+  snprintf(msg, MSG_BUFFER_SIZE, "{'%s_status':'%s'}", label, status);
+
+  // Send MQTT message to attributeTopic
+  Log.noticeln("Publish message: %s", msg);
+
+  while(!attributeTopic.publish(msg)) {
+    Log.errorln("Failed.");
+    MQTT_connect();
+    Log.noticeln("Trying to send message again now.");
+  }
+}
+
 void setup() {
   // Iniatilize serial interface for logging
   Serial.begin(115200);
@@ -129,15 +143,33 @@ void setup() {
   // Initialize WiFi connection
   WifiSetup();
 
-  // Initialize NTP client
-  timeClient.begin();
-
-  // Initialize DHT11 sensor
-  dht.begin();
-
   // OTA setup
   ArduinoOTA.setHostname(MQTT_CLIENT_ID);
   ArduinoOTA.begin();
+
+  // Connect with MQTT Broker
+  MQTT_connect();
+
+  // Initialize NTP client
+  timeClient.begin();
+
+  // Get time for the first time, timesout in 15s after start
+  // Send to Thingsboard status of NTP time
+  while(!timeClient.isTimeSet()) {
+    Log.noticeln("Waiting for time to be set by NTP.");
+    if(millis() > 15000) {
+      Log.noticeln("Taking too long. Reporting error and restarting.");
+      sendStatus("NTP", "ERROR");
+      ESP.restart();
+    }
+    timeClient.update();
+    delay(1000);
+  }
+  Log.noticeln("NTP time set successfully.");
+  sendStatus("NTP", "OK");
+
+  // Initialize DHT11 sensor
+  dht.begin();
 }
 
 void loop() {

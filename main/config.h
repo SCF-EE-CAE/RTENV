@@ -24,5 +24,6 @@
 // Size of JSON message buffer, for MQTT
 #define MSG_BUFFER_SIZE	100
 
-// MQTT Telemetry Topic
+// MQTT Topics
 #define MQTT_TELEMETRY_TOPIC "v1/devices/me/telemetry"
+#define MQTT_ATTRIBUTE_TOPIC "v1/devices/me/attributes"
