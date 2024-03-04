@@ -136,6 +136,7 @@ void setup() {
   dht.begin();
 
   // OTA setup
+  ArduinoOTA.setHostname(MQTT_CLIENT_ID);
   ArduinoOTA.begin();
 }
 
