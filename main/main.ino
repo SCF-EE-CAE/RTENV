@@ -86,26 +86,40 @@ void MQTT_connect() {
   Log.noticeln("MQTT Connected! Firmware version " FIRMWARE_VERSION " sent to Thingsboard.");
 }
 
+bool readDHTSensor(float& temperature, float& humidity, int maxAttempts = 3) {
+  for (int attempt = 0; attempt < maxAttempts; ++attempt) {
+    temperature = dht.readTemperature(); // Celsius
+    humidity = dht.readHumidity();
+
+    if (!isnan(temperature) && !isnan(humidity)) {
+      return true; // Sensor read successful
+    } else {
+      Log.warningln("Failed to read DHT sensor, retrying in 2 seconds...");
+      delay(2000);
+    }
+  }
+
+  Log.errorln("Unable to read DHT sensor after multiple attempts.");
+  return false; // All attempts failed
+}
+
+bool testDHTSensor() {
+  float temp, hum;
+  return readDHTSensor(temp, hum);
+}
+
 void sendData() {
   // Save current timestamp
   unsigned long timestamp = timeClient.getEpochTime(); // unix time in seconds
 
-  float temp;
-  float hum;
-  
   // Read Temperature and Humidity with DHT sensor
-  while(true) {
-    temp = dht.readTemperature(); // Celsius
-    hum = dht.readHumidity();
-
-    if(isnan(temp) || isnan(hum)) {
-      Log.errorln("Failed to read DHT sensor, trying again in 2 seconds");
-      delay(2000);
-    }
-    else {
-      break;
-    }
+  float temp, hum;
+  if(!readDHTSensor(temp, hum)) {
+    Log.errorln("DHT Sensor error.");
+    sendStatus("DHT", "ERROR");
+    ESP.restart();
   }
+  Log.noticeln("DHT Read OK.");
 
   // Write to message buffer, timestamp in milliseconds by adding 3 zeros
   snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%.0f,'humidity':%.0f}}", timestamp, temp, hum);
@@ -170,8 +184,17 @@ void setup() {
   Log.noticeln("NTP time set successfully.");
   sendStatus("NTP", "OK");
 
-  // Initialize DHT11 sensor
+  // Initialize DHT11 sensor and test
   dht.begin();
+  
+  if(!testDHTSensor()) {
+    Log.errorln("DHT Sensor not working.");
+    sendStatus("DHT", "ERROR");
+    ESP.restart();
+  }
+  Log.noticeln("DHT Sensor working.");
+  sendStatus("DHT", "OK");
+
 }
 
 void loop() {
