@@ -164,6 +164,7 @@ void setup() {
 
   // OTA setup
   ArduinoOTA.setHostname(MQTT_CLIENT_ID);
+  ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.begin();
 
   // Connect with MQTT Broker

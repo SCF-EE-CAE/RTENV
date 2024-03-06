@@ -14,6 +14,9 @@
 #define MQTT_USERNAME  ""
 #define MQTT_PASSWORD  ""
 
+// OTA credentials
+#define OTA_PASSWORD ""
+
 // MQTT QOS (0 or 1)
 #define MQTT_QOS_LEVEL 1
 
