@@ -156,11 +156,15 @@ void setup() {
   while(!Serial && !Serial.available());
   Log.begin(LOG_LEVEL_VERBOSE, &Serial);
 
+  // Show MAC
+  Log.noticeln(NL NL "MAC address: %s", WiFi.macAddress().c_str());
+
   // Initialize WiFi connection
   WifiSetup();
 
   // OTA setup
   ArduinoOTA.setHostname(MQTT_CLIENT_ID);
+  ArduinoOTA.setPassword(OTA_PASSWORD);
   ArduinoOTA.begin();
 
   // Connect with MQTT Broker
