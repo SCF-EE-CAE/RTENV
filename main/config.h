@@ -1,5 +1,5 @@
 // Code version
-#define FIRMWARE_VERSION "v3"
+#define FIRMWARE_VERSION "v4"
 
 // WiFi Credentials
 #define WIFI_SSID     ""
@@ -18,14 +18,14 @@
 #define OTA_PASSWORD ""
 
 // MQTT QOS (0 or 1)
-#define MQTT_QOS_LEVEL 1
+#define MQTT_QOS_LEVEL 
 
 // DHT pin and type
 #define DHT_PIN 2
 #define DHT_TYPE DHT11
 
 // NTP server address
-#define NTP_SERVER "a.st1.ntp.br"
+#define NTP_SERVER ""
 
 // Size of JSON message buffer, for MQTT
 #define MSG_BUFFER_SIZE	100
