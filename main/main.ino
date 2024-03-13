@@ -49,9 +49,12 @@ void WifiSetup() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Log.noticeln(".");
+  int8_t ret;
+  if ((ret = WiFi.waitForConnectResult()) != WL_CONNECTED) {
+    Log.errorln("Connection Error, status_code = %d", ret);
+    Log.errorln("Resetting in 5 seconds...");
+    delay(5000);
+    ESP.restart();
   }
 
   Log.noticeln(NL "WiFi connected. IP address: ");
@@ -81,9 +84,7 @@ void MQTT_connect() {
     if (retries == 0) ESP.restart();
   }
 
-  attributeTopic.publish("{'firmwareVersion':" FIRMWARE_VERSION "}");
-
-  Log.noticeln("MQTT Connected! Firmware version " FIRMWARE_VERSION " sent to Thingsboard.");
+  Log.noticeln("MQTT Connected!");
 }
 
 bool readDHTSensor(float& temperature, float& humidity, int maxAttempts = 3) {
@@ -128,13 +129,30 @@ void sendData() {
   Log.noticeln("Publish message: %s", msg);
 
   while(!telemetryTopic.publish(msg)) {
-    Log.errorln("Failed.");
+    Log.errorln("Failed. Disconnect, connect.");
+    delay(1000);
+    mqttClient.disconnect();
     MQTT_connect();
     Log.noticeln("Trying to send message again now.");
   }
 
   Log.noticeln("Success, next in 30s.");
   delay(2000);
+}
+
+void sendFirmwareVersion() {
+  snprintf(msg, MSG_BUFFER_SIZE, "{'firmwareVersion': %s}", FIRMWARE_VERSION);
+
+  // Send MQTT message to attributeTopic
+  Log.noticeln("Publish message: %s", msg);
+
+  while(!attributeTopic.publish(msg)) {
+    Log.errorln("Failed. Disconnect, connect.");
+    delay(1000);
+    mqttClient.disconnect();
+    MQTT_connect();
+    Log.noticeln("Trying to send message again now.");
+  }
 }
 
 void sendStatus(const char *label, const char *status) {
@@ -144,7 +162,9 @@ void sendStatus(const char *label, const char *status) {
   Log.noticeln("Publish message: %s", msg);
 
   while(!attributeTopic.publish(msg)) {
-    Log.errorln("Failed.");
+    Log.errorln("Failed. Disconnect, connect.");
+    delay(1000);
+    mqttClient.disconnect();
     MQTT_connect();
     Log.noticeln("Trying to send message again now.");
   }
@@ -169,6 +189,9 @@ void setup() {
 
   // Connect with MQTT Broker
   MQTT_connect();
+
+  // Send firmware version as attributte
+  sendFirmwareVersion();
 
   // Initialize NTP client
   timeClient.begin();
@@ -204,16 +227,14 @@ void setup() {
 void loop() {
   // Handle OTA firmware flash request
   ArduinoOTA.handle();
-  
-  // Keep connection with MQTT Broker
-  MQTT_connect();
-
-  // Update internal time with NTP server
-  timeClient.update();
 
   int seconds = timeClient.getSeconds();
-  if(seconds == 0 || seconds == 30)
+  if(seconds == 0 || seconds == 30) {
     sendData();
+
+    // Update internal time with NTP server
+    timeClient.update();
+  }
 
   delay(200);
 }
