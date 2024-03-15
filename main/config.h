@@ -1,5 +1,5 @@
 // Code version
-#define FIRMWARE_VERSION "v4"
+#define FIRMWARE_VERSION "v5"
 
 // WiFi Credentials
 #define WIFI_SSID     ""
@@ -16,9 +16,6 @@
 
 // OTA credentials
 #define OTA_PASSWORD ""
-
-// MQTT QOS (0 or 1)
-#define MQTT_QOS_LEVEL 
 
 // DHT pin and type
 #define DHT_PIN 2

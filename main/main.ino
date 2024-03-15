@@ -30,8 +30,8 @@ Adafruit_MQTT_Client mqttClient(&wifiClient,
                                 MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
 
 // Topics to publish data
-Adafruit_MQTT_Publish telemetryTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_TELEMETRY_TOPIC, MQTT_QOS_LEVEL);
-Adafruit_MQTT_Publish attributeTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_ATTRIBUTE_TOPIC, MQTT_QOS_LEVEL);
+Adafruit_MQTT_Publish telemetryTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_TELEMETRY_TOPIC, MQTT_QOS_0);
+Adafruit_MQTT_Publish attributeTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_ATTRIBUTE_TOPIC, MQTT_QOS_1);
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
@@ -140,8 +140,11 @@ void sendData() {
   delay(2000);
 }
 
-void sendFirmwareVersion() {
-  snprintf(msg, MSG_BUFFER_SIZE, "{'firmwareVersion': %s}", FIRMWARE_VERSION);
+void sendSystemInfo() {
+  snprintf(msg, MSG_BUFFER_SIZE, "{'firmwareVersion':%s,'ip':%s,'mac':%s}",
+                                 FIRMWARE_VERSION,
+                                 WiFi.localIP().toString(),
+                                 WiFi.macAddress().c_str());
 
   // Send MQTT message to attributeTopic
   Log.noticeln("Publish message: %s", msg);
@@ -190,8 +193,8 @@ void setup() {
   // Connect with MQTT Broker
   MQTT_connect();
 
-  // Send firmware version as attributte
-  sendFirmwareVersion();
+  // Send system info as attributtes
+  sendSystemInfo();
 
   // Initialize NTP client
   timeClient.begin();
