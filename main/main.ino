@@ -123,7 +123,7 @@ void sendData() {
   Log.noticeln("DHT Read OK.");
 
   // Write to message buffer, timestamp in milliseconds by adding 3 zeros
-  snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%.0f,'humidity':%.0f}}", timestamp, temp, hum);
+  snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%.1f,'humidity':%.1f}}", timestamp, temp, hum);
 
   // Send MQTT message to telemetryTopic
   Log.noticeln("Publish message: %s", msg);
