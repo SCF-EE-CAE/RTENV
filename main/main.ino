@@ -141,10 +141,15 @@ void sendData() {
 }
 
 void sendSystemInfo() {
-  snprintf(msg, MSG_BUFFER_SIZE, "{'firmwareVersion':%s,'ip':%s,'mac':%s}",
+  const char *dhtType = "UNKNOWN";
+  if(DHT_TYPE == DHT11) dhtType = "DHT11";
+  if(DHT_TYPE == DHT22) dhtType = "DHT22";
+
+  snprintf(msg, MSG_BUFFER_SIZE, "{'firmwareVersion':'%s','ip':'%s','mac':'%s','DHT_type':'%s'}",
                                  FIRMWARE_VERSION,
-                                 WiFi.localIP().toString(),
-                                 WiFi.macAddress().c_str());
+                                 WiFi.localIP().toString().c_str(),
+                                 WiFi.macAddress().c_str(),
+                                 dhtType);
 
   // Send MQTT message to attributeTopic
   Log.noticeln("Publish message: %s", msg);
