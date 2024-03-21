@@ -30,8 +30,8 @@ Adafruit_MQTT_Client mqttClient(&wifiClient,
                                 MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
 
 // Topics to publish data
-Adafruit_MQTT_Publish telemetryTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_TELEMETRY_TOPIC, MQTT_QOS_LEVEL);
-Adafruit_MQTT_Publish attributeTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_ATTRIBUTE_TOPIC, MQTT_QOS_LEVEL);
+Adafruit_MQTT_Publish telemetryTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_TELEMETRY_TOPIC, MQTT_QOS_0);
+Adafruit_MQTT_Publish attributeTopic = Adafruit_MQTT_Publish(&mqttClient, MQTT_ATTRIBUTE_TOPIC, MQTT_QOS_1);
 
 // Define NTP Client to get time
 WiFiUDP ntpUDP;
@@ -123,7 +123,7 @@ void sendData() {
   Log.noticeln("DHT Read OK.");
 
   // Write to message buffer, timestamp in milliseconds by adding 3 zeros
-  snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%.0f,'humidity':%.0f}}", timestamp, temp, hum);
+  snprintf(msg, MSG_BUFFER_SIZE, "{'ts':%lu000,'values':{'temperature':%.1f,'humidity':%.1f}}", timestamp, temp, hum);
 
   // Send MQTT message to telemetryTopic
   Log.noticeln("Publish message: %s", msg);
@@ -140,8 +140,16 @@ void sendData() {
   delay(2000);
 }
 
-void sendFirmwareVersion() {
-  snprintf(msg, MSG_BUFFER_SIZE, "{'firmwareVersion': %s}", FIRMWARE_VERSION);
+void sendSystemInfo() {
+  const char *dhtType = "UNKNOWN";
+  if(DHT_TYPE == DHT11) dhtType = "DHT11";
+  if(DHT_TYPE == DHT22) dhtType = "DHT22";
+
+  snprintf(msg, MSG_BUFFER_SIZE, "{'firmwareVersion':'%s','ip':'%s','mac':'%s','DHT_type':'%s'}",
+                                 FIRMWARE_VERSION,
+                                 WiFi.localIP().toString().c_str(),
+                                 WiFi.macAddress().c_str(),
+                                 dhtType);
 
   // Send MQTT message to attributeTopic
   Log.noticeln("Publish message: %s", msg);
@@ -190,8 +198,8 @@ void setup() {
   // Connect with MQTT Broker
   MQTT_connect();
 
-  // Send firmware version as attributte
-  sendFirmwareVersion();
+  // Send system info as attributtes
+  sendSystemInfo();
 
   // Initialize NTP client
   timeClient.begin();

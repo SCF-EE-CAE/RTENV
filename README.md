@@ -1,4 +1,4 @@
-# RTENV - Versão: v4
+# RTENV - Versão: v5
 
 Código do módulo ambiental do projeto.
 
